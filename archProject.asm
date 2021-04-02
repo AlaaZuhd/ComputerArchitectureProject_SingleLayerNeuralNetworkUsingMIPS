@@ -3,6 +3,7 @@
 #Need To consider: 
 #Handling the different inputs that the user may be entering 
 #reading the name of the file
+# in case of perceptron we assume that the neouron is for class 0, so mapping for the output: if out==0 then class 0 is off and vice versa 
 #-------------------------#
 .data
 numOfFeatures: .byte 0
@@ -33,7 +34,13 @@ end: .asciiz "\n End of file reached \n"
 testing: .asciiz "\n Testing \n"
 zeroAsFloat: .float 0.0
 oneAsFloat: .float 1.0
+minusOneAsFloat: .float -1.0 
 tenAsFloat: .float 10.0
+decreasePointSeven: .float 0.7
+increaseOnePointZeroFive: .float 1.05
+ratio: .float 1.04
+previousSumOfSquareErrors: .float 0.0 
+currentSumOfSquareErrors: .float 0.0 
 maximumNumOfChars: .byte 50
 
 
@@ -578,6 +585,9 @@ trainingProcedure:
 	# $f6 : get true class of sample 
 	# $f7 : the current threshold 
 	# $f13 and $f14 : get the feature and the weight 
+	# $f25: sumOfSquareErrors 
+	# $f26: previousSumOfSquareErrors 
+	# $f24: error*error 
 	
 	move $s0, $a1 
 	la $s2, numOfFeatures
@@ -613,7 +623,7 @@ trainingProcedure:
          la $t6, samplesArray
 
                
-epochs: # need to call update for learning rate 
+epochs:  
 	beq $s2, $s4, exitTraining	# if $s4==num of epochs "$s2" well done 
 	addi $s4, $s4, 1
 	lwc1 $f1, zeroAsFloat    #clearing the register
@@ -626,7 +636,7 @@ samples:
          add $t4, $t4, $s0 # needs to get the weights again 
 	xor $s5, $s5, $s5	  
 	c.eq.s $f1, $f3 # if $f1==num of samples "$f3" start new epoch
-	bc1t epochs 
+	bc1t epochA
 	add.s $f1, $f1, $f2
 newSample: 
 	lwc1 $f13, 0($t6) # get the feature in f13
@@ -670,12 +680,29 @@ getClass: # call update weights, thresholds.
 	lw $s6, 0($sp)
 	lw $ra, 4($sp)
 	
+	addi $sp, $sp, -8 
+	# needed to call another procedure 
+	sw $s6, 0($sp)
+	sw $ra, 4($sp)
+	jal updateWeightsAndThreshold
+	lw $s6, 0($sp)
+	lw $ra, 4($sp)
+	
 	la $a0, newLine
 	li $v0, 4
 	syscall 
 	addi $t6, $t6, 4
 	j samples 
-		                  
+
+epochA:
+	addi $sp, $sp, -8 
+	# needed to call another procedure 
+	sw $s6, 0($sp)
+	sw $ra, 4($sp)
+	jal updateLearningRate
+	lw $s6, 0($sp)
+	lw $ra, 4($sp)
+	j epochs 		                  		                  
 exitTraining: 	
 	                        
 	jr $ra
@@ -717,9 +744,177 @@ calcError:
 	add.s $f12, $f12, $f6
 	li $v0, 2
 	syscall 
-	# calculate the error 
+	jr $ra
+# ---------------------- #
+
+# ---------------------- #
+# update weights and threshold procedure
+# ---------------------- #
+updateWeightsAndThreshold:
+	# threshold, previousweights, error, momentum  
+	# $f7 : the current threshold
+	# $f8 : previous weight "to be edit" 
+	# $f9 : the error
+	# $f10: momentum
+	# $f11: the current feature
+	# $s3 : number of features
+	# $t9 : pointer to the needed input  
+	# $t8 : counter for the features 
+	# $f18: learning rate 
+	# $19: used for input 
+	# $f20: used in calculation for the second term of the newWeight equation
+	# $f21: used to store -1.0
+	# $f22: used to store 1.0 
+	# newWeight = Momentum*previousWeight + (1-Momentum)*learningRate*Feature*error 
+	# $f25: sumOfSquareErrors 
+	# $f26: previousSumOfSquareErrors 
+	# $f24: error8error 
+	la $t4, weightsArray 
+         add $t4, $t4, $s0 # needs to get the weights again
+         lwc1 $f7, 0($t5) # get the threshold in $f7
+         lwc1 $f10, momentum
+         lwc1 $f9, zeroAsFloat
+         sub.s $f9, $f5, $f6 # the error now in $f9  
+	
+	#         
+	mul.s $f24, $f9, $f9 # error8erro 
+	add.s $f25, $f25, $f24 # add the current sqaure error to the sumOfErrors for the current epoch 
+	
+	#                        
+         xor $s3, $s3, $s3
+         la $t1, numOfFeatures
+         lb $s3, 0($t1)
+         
+         move $t9, $t6 
+         sll $s3, $s3, 2
+         sub $t9, $t9, $s3 # $t9 pointer to the needed input 
+         xor $s3, $s3, $s3
+         la $t1, numOfFeatures
+         lb $s3, 0($t1) # $s5 contains the number of features 
+         
+         la $t1, learningRate
+         lwc1 $f18, 0($t1)
+  
+         xor $t8, $t8, $t8 # set the counter to 0 
+loopThroughFeatures:
+	lwc1 $f10, momentum
+	beq $t8,$s3, exitLoppThroughFeatures
+	lwc1 $f8, 0($t4) # get the weight 
+	lwc1 $f19, 0($t9) # get the input 
+	mul.s $f8, $f8, $f10 # weight = weight*momentum 
+	lwc1 $f20, oneAsFloat
+	mul.s $f20, $f20, $f18 # f20=learning rate  
+	mul.s $f20, $f20, $f19 # f20=learningRate*input
+	mul.s $f20, $f20, $f9  # f20= learningRate*input*error
+	lwc1 $f21, minusOneAsFloat
+	mul.s $f10, $f10, $f21 # f10 = -1*momentum 
+	lwc1 $f22, oneAsFloat
+	add.s $f10, $f10, $f22
+	mul.s $f20, $f20, $f10 # f20= (1-Momentum)*learningRate*Feature*error
+	add.s $f8, $f8, $f20 # newWeight 
+	swc1 $f8, 0($t4)  
+	addi $t4, $t4, 4
+	addi $t9, $t9, 4
+	addi $t8, $t8, 1
+	j loopThroughFeatures
+exitLoppThroughFeatures:
+
+# update threshold 
+	# thrseshold update= moment*old + (1-momemnt)*rate*erorr
+	# $f22: used in calculation for the second term of the newWeight equation
+	# $f21: used to store -1.0
+	# $f22: used to store 1.0 
+	# $f7 : the current threshold
+	# $f8 : sued in threshold calculation as the first term 
+	# $f9 : the error
+	# $f10: momentum
+	# $f18: learning rate 	
+	lwc1 $f20, zeroAsFloat
+	lwc1 $f21, minusOneAsFloat
+	lwc1 $f22, oneAsFloat
+	# f7 loaded with the threshold value from the previous step
+	lwc1 $f8, zeroAsFloat
+	lwc1 $f10, momentum
+	mul.s $f7, $f7, $f10 # f7 = threshold*momentum 
+	mul.s $f10, $f10, $f21 # f10 = -1*momentum 
+	lwc1 $f22, oneAsFloat
+	add.s $f10, $f10, $f22 # $f10 = 1-momentum 
+	mul.s $f22, $f9, $f10 # f22= (1-Momentum)*error 
+	mul.s $f22, $f22, $f18 # f22 = (1-Momentum)*error*learningRate "we decided that the input is fixed to 1"
+	add.s $f22, $f22, $f7 # new threshold
+	swc1 $f22, 0($t5) # store the new threshold 		 
 	jr $ra
 # ---------------------- #
 
 
+# ---------------------- #
+# update the learning rate  
+# ---------------------- #
+updateLearningRate:
+	# $f25: sumOfSquareErrors 
+	# $f26: previousSumOfSquareErrors 
+	# $f24: error*error 
+	# $f27: for calculations 
+	# $f18: learning rate
+	lwc1 $f18, learningRate
+	lwc1 $f26, previousSumOfSquareErrors
+	beq $s4, 1, updatePreviousSumOfSqaureErrors
+	lwc1 $f0, zeroAsFloat
+	c.eq.s $f26, $f0
+	bc1t updatePreviousSumOfSqaureErrors
+	la $a0, newLine
+	li $v0, 4
+	syscall  
+	la $a0, welcomeMess
+	li $v0, 4
+	syscall
+	li $v0, 1
+	move $a0, $s4
+	syscall 
+	la $a0, newLine
+	li $v0, 4
+	syscall 
+	# find the ratio 
+	div.s $f27, $f25, $f26 # $f27 = currentSumOfSquareerrors/previousSumOfSquareerrors
+	lwc1 $f0, ratio
+	c.le.s $f27, $f0
+	bc1t increase
+	# decreases the learning rate by 0.7 
+	lwc1 $f27, decreasePointSeven
+	mul.s $f18, $f18, $f27
+	swc1 $f18, learningRate
+	j updatePreviousSumOfSqaureErrors
+increase: # increase the learning rate by 1.05
+	la $a0, temp
+	li $v0, 4
+	syscall   
+	lwc1 $f27, increaseOnePointZeroFive
+	mul.s $f18, $f18, $f27
+	swc1 $f18, learningRate
+updatePreviousSumOfSqaureErrors: 
+	swc1 $f25, previousSumOfSquareErrors
+	lwc1 $f25, zeroAsFloat
+	la $a0, newLine
+	li $v0, 4
+	syscall  	
+	lwc1 $f12, learningRate
+	li $v0 , 2
+	syscall 
+	la $a0, newLine
+	li $v0, 4
+	syscall 
+	jr $ra 
+# ---------------------- #
 
+# ---------------------- #
+# findMaxPropability procedure  
+# ---------------------- #
+
+# ---------------------- #
+
+
+# ---------------------- #
+# ........ 
+# ---------------------- #
+
+# ---------------------- #
