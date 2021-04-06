@@ -9,7 +9,8 @@
 numOfFeatures: .byte 0
 numOfClasses: .byte 0
 numOfSamples: .float 0.0
-samplesArray: .float 0:1000  # array of 100 element, each is a word.   
+samplesArray: .float 0:1000  # array of 1000 element, each is a word.
+testingArray: .float 0:1000 # array of 1000 element, each is a word
 weightsArray: .float 0:255
 numOfEpochs: .byte 0
 learningRate: .float 0.0
@@ -17,17 +18,18 @@ threshold: .float 0.0  # delete this later
 thresholdsArray: .float 0:255
 momentum: .float 0.0
 fileName: .space 50
-bufferTemp: .space 2048
+bufferTemp: .space 2048 ## increase it 
+bufferTempT: .space 2048 
 newLine: .asciiz "\n"
-welcomeMess: .asciiz "\t\t\t\t ----------- Welcome in our Project ---------- \n"
-fileNameMess: .asciiz "Enter the Nmae of the Input File : \n"
+welcomeMess: .asciiz "\t\t\t\t\t\t\t\t\t----------- Welcome in our Project ---------- \n"
+fileNameMess: .asciiz "Enter the Nmae of the File : \n"
 weightMess: .asciiz "Enter the Weight: \n"
 weightInputNumMess: .asciiz "Weights for Neuron NO."
 thresholdMess: .asciiz "Enter the threshold value: \n"
 momentumMess: .asciiz "Enter the momentum value: \n"
 rateMess: .asciiz "Enter the learning rate: \n"
 epochsMess: .asciiz "Enter the number of Epochs: \n"
-
+testingMess: .asciiz "Now we are done with training, you will enter the testing stage\n"
 element1: .asciiz "\n Incrementing by 1 \n"
 element2: .asciiz "\n Increamenting by 2 \n"
 end: .asciiz "\n End of file reached \n"
@@ -43,6 +45,9 @@ previousSumOfSquareErrors: .float 0.0
 currentSumOfSquareErrors: .float 0.0 
 maximumNumOfChars: .byte 50
 
+numberOfTestingSamples: .byte 0 
+
+weightedSumArray: .float 0:1000
 
 temp: .asciiz "Ecpected & True Value : \n"
 
@@ -70,6 +75,7 @@ la $a0, fileName
 jal printString
 
 # read the input file
+la $s7, bufferTemp
 jal readFile
 
 #printing what we have read
@@ -82,7 +88,7 @@ jal printString
 
 
 # read the number of features and the number of classes from the input file
-jal readFeaturesNumAndClassesNum 
+jal readSamplesArray
 
 # read the weights from the user
 jal readWeights
@@ -113,7 +119,122 @@ loopThroughNeurons:
 	addi $a1, $a1, 1
 	j loopThroughNeurons
 exitLoopThroughNeurons:
+
+la $a0, newLine
+li $v0, 4
+syscall 
+syscall 
+la $s0, numOfClasses
+xor $s1, $s1, $s1
+lb $s1, 0($s0)
+la $s2, thresholdsArray
+xor $s3, $s3, $s3
+loop22:
+	beq $s3, $s1, exitloop22
+	lwc1 $f12, 0($s2)
+	li $v0, 2
+	syscall 
+	la $a0, newLine
+li $v0, 4
+syscall
+	addi $s3, $s3, 1
+	addi $s2, $s2, 4
+	j loop22
+exitloop22:
+
+la $a0, newLine
+li $v0, 4
+syscall 
+syscall 
+
 #######################
+# Start testing 
+# 1- read file => testingArray 
+# 2- loop through the testing dataset
+# bias is the same as threshold 
+
+# promt the user to enter the file name 
+la $a0, testingMess
+jal printString
+
+# promt the user to enter the file name 
+la $a0, fileNameMess
+jal printString
+
+# reading the file name
+jal readFileName
+	
+# printing the name of the file
+la $a0, fileName
+jal printString
+
+# read the input file
+la $s7, bufferTempT
+jal readFile
+ 
+#printing what we have read
+la $a0, bufferTempT
+jal printString
+
+# printing new line
+la $a0,newLine
+jal printString
+
+jal readTestingArray
+
+# calling softMax procedure  
+
+# looping through the datatest
+
+# $a1 : counter for loopThroughNeurons loop 
+# $a3 : counter for loopThroughTestSamples
+# $a2 : for numberOfTestingSamples
+# $t0 ; for number of classes 
+# $t1 : pointer to the weightedSum array 
+# $t3 : pointer for the testingArray 
+# $s7 : to store the address of the current sample 
+
+la $a0, numOfFeatures 
+lb $s6, 0($a0)
+addi $s6, $s6, 1
+sll $s6,$s6, 2
+
+
+la $t3, testingArray 
+move $s7, $t3
+la $a1, numberOfTestingSamples
+lb $a2, 0($a1)
+move $a0, $a2
+li $v0, 1
+syscall 
+li $v0, 5
+syscall 
+xor $a3, $a3, $a3
+loopThroughTestSamples:
+	move $s7, $t3 
+	beq $a3, $a2, exitLoopThroughTestSamples
+	# loop through each neuron 
+	xor $a1, $a1, $a1
+	la $t2, numOfClasses
+	lb $t0, 0($t2)
+	la $t1, weightedSumArray
+	
+	loopThroughNeurons1:
+		beq $a1, $t0, exitLoopThroughNeurons1
+		move $t3, $s7 
+		# calculate the weightedSum for the current sample and the current neuron
+		jal calculateTheWeightedSum 
+		addi $a1, $a1, 1
+		j loopThroughNeurons1
+	exitLoopThroughNeurons1:
+		
+	# move t softMax function 
+	add $t3, $t3, 4 
+	addi $a3, $a3, 1
+	j loopThroughTestSamples
+exitLoopThroughTestSamples:
+  # looping through the neurons
+   
 
 li $v0, 10 
 syscall
@@ -169,7 +290,7 @@ readFile:
 	#Reading the File 
 	li $v0, 14  
 	move $a0, $s0
-	la $a1, bufferTemp
+	move $a1, $s7 
 	la $a2, 2048 
 	syscall 
 	li $v0, 16  #Closing the file
@@ -181,7 +302,7 @@ readFile:
 # ---------------------- #
 # reading the number of features and the number of classes from the from the input file 
 # ---------------------- #
-readFeaturesNumAndClassesNum:
+readSamplesArray:
 
 	xor $s1,$s1,$s1  #clearing the register
 	la $t0, bufferTemp
@@ -914,7 +1035,229 @@ updatePreviousSumOfSqaureErrors:
 
 
 # ---------------------- #
-# ........ 
+# read the testing file procedure
+# ---------------------- #
+readTestingArray:
+fillingArrayLoopAT:
+
+      #temp 
+      xor $t7, $t7, $t7
+      #
+      la $t0, bufferTempT
+      lwc1 $f0, zeroAsFloat  #Setting them for future use
+      lwc1 $f1, zeroAsFloat  #loading $f1 with 0.0
+      lwc1 $f10, tenAsFloat  #Setting them for future use
+      lwc1 $f11, tenAsFloat  
+      move $t8, $zero # counter for the testingarray 
+      # newLine
+      la $a0,newLine
+      li $v0,4
+      syscall
+      #
+      la $a1, testingArray   #the base address of array 
+      
+      j fillingArrayLoopT
+
+#register $f1, $f2 will be used in reading the numbers 
+#$a1 is the base for samplesArray 
+
+fillingArrayLoopT: 
+      lb $s2,0($t0)
+      beq  $s2,'\0' endOfFileT # reach end of file need to exit the procedure 
+      beq  $s2,',', newElement1T # anther element at the same line 
+      beq  $s2,13, newElement2T # another element at the next line 
+      beq  $s2,'.', divisionT  # reading the fraction part 
+      andi $s2,$s2,0x0F # where $t0 contains the ascii digit.
+      #tryng to convert 
+      mtc1 $s2, $f2
+      cvt.s.w $f2, $f2
+      #multipplying by ten
+      mul.s $f1,$f1,$f10	
+      add.s $f1,$f1,$f2
+      add $t0, $t0,1
+      
+      j fillingArrayLoopT
+      
+divisionT: # same logic as above
+	add $t0, $t0,1
+	lb $s2,0($t0)
+        beq  $s2,'\0' endOfFileT
+        beq  $s2,',', newElement1T
+        beq  $s2,13, newElement2T
+	andi $s2,$s2,0x0F # where $t0 contains the ascii digit .
+        #tryng to convert 
+        mtc1 $s2, $f2
+        cvt.s.w $f2, $f2
+        div.s $f2, $f2, $f11
+        add.s $f1, $f1, $f2
+        mul.s $f11,$f11,$f10  #first time divide by 10 , 100 , 1000
+        j divisionT         
+      
+      
+endOfFileT:
+        #printing what we have read
+	la $a0, end
+	li $v0, 4
+	syscall
+	j exitAT
+      
+newElement1T: 
+       
+	#printing what we have read
+ 	li $v0, 4
+	la $a0, element1
+	syscall 
+	# storing
+	add.s $f12, $f1,$f0
+	swc1 $f12, 0($a1) 
+	addi $a1, $a1, 4 
+	#
+	#addi $t8,$t8,1
+	addi $t0, $t0, 1
+	lwc1 $f1, zeroAsFloat   #clearing the register
+	lwc1 $f11, tenAsFloat
+	j fillingArrayLoopT
+	 
+      
+newElement2T: 
+	#printing what we have read
+ 	li $v0, 4
+	la $a0, element2
+	syscall      
+	# storing
+	add.s $f12, $f1,$f0
+	swc1 $f12, 0($a1) 
+	addi $a1, $a1, 4 
+	#
+	addi $t8,$t8,1
+	addi $t0, $t0, 2
+	lwc1 $f1, zeroAsFloat    #clearing the register
+	lwc1 $f11, tenAsFloat
+	addi $t7, $t7, 1
+	j fillingArrayLoopT            
+                  
+                
+exitAT: 
+	la $a1, testingArray
+	xor $t6, $t6, $t6 
+	la $a0, newLine
+	li $v0, 4
+	syscall 
+	move $a0,$t8
+	li $v0, 1
+	syscall 
+	li $v0, 5
+	syscall 
+	la $a0, newLine
+	li $v0, 4
+	syscall 
+	la $a3, numberOfTestingSamples
+	sb $t8, 0($a3)
+	j printingSamplesT
+	
+printingSamplesT:
+    	beq $t6, $t8, exitT	
+	lwc1 $f12, ($a1)
+	li $v0, 2
+	syscall
+	la $a0, newLine
+	li $v0, 4
+	syscall 
+
+	addi $a1, $a1, 4
+	addi $t6, $t6, 1
+	j printingSamplesT
+	
+exitT:
+ 	jr $ra	
 # ---------------------- #
 
+# ---------------------- # 
+# calculateTheWeightedSum procedure 
 # ---------------------- #
+calculateTheWeightedSum:
+	
+	# $s0 : shift amount for weight 
+	# $s1 : shift amount for threshold
+	# $s3 : number of features
+	# $t4 : address of weightsArray 
+	# $t5 : address of thresholdsArray 
+	# $f5 : get expected class of sample
+	# $f6 : get true class of sample 
+	# $f7 : the current threshold 
+	# $f13 and $f14 : get the feature and the weight
+	# $s4 : counter for the epochs "outer loop"
+	# $s5 : counter for the features "inner inner loop" 
+	# $f2 : oneAsFloat
+	# $f4 : for the weightedSum 
+	#
+	# $a1 : counter for loopThroughNeurons loop 
+	# $a3 : counter for loopThroughTestSamples
+	# $a2 : for numberOfTestingSamples
+	# $t0 ; for number of classes 
+	# $t1 : pointer to the weightedSum array 
+	# $t3 : pointer for the testingArray   
+	
+	la $s2, numOfFeatures
+	xor $s3, $s3, $s3
+	lb $s3, ($s2)  # s3 : number of featuress in one sample 
+	
+	move $s0, $a1 # a1 contains the number of the current neuron 
+	multu $s0, $s3 
+	mflo $s0 # $s0 shift amount to the weight for the current neuron
+	sll $s0, $s0, 2
+	move $s1, $a1 # $s1 shift amount to the threshold of the current neuron 
+	sll $s1, $s1, 2
+	la $t4, weightsArray
+         add $t4, $t4, $s0 
+         
+         la $t5, thresholdsArray 
+         add $t5, $t5, $s1
+	
+	xor $s4, $s4, $s4 # counter for the outer loop 
+	lwc1 $f4, zeroAsFloat 
+	# loop through the features in the current sample
+	
+	loopThroughFeatures1: 
+		beq $s4, $s3, exitloopThroughFeatures1
+		
+		lwc1 $f13, 0($t3) # get the feature in f13
+		lwc1 $f14, 0($t4) # get the weight in f14 
+		mul.s $f13, $f13, $f14
+		add.s $f4, $f4, $f13 # add W*F into the weighted sum 
+		
+		lwc1 $f12, 0($t3)
+		li $v0, 2
+		syscall 
+		
+		addi $t3, $t3, 4
+		addi $t4, $t4, 4
+		addi $s5, $s5, 1
+		addi $s4, $s4, 1
+		j loopThroughFeatures1
+	exitloopThroughFeatures1: 
+	la $a0, welcomeMess
+	li $v0, 4
+	syscall 
+	# subtract the threshold 
+	lwc1 $f13, 0($t5) # the threshold value of the current neuron 
+	la $a0, newLine
+	li $v0, 4
+	syscall 
+	lwc1 $f12, 0($t5)
+	li $v0, 2
+	syscall 
+	sub.s $f4, $f4, $f13
+	# store the currnet weightedSum ($f4) into weightedSum array 
+	swc1 $f4, 0($t1)
+	
+	lwc1 $f12, zeroAsFloat
+	add.s $f12, $f12, $f4
+	li $v0, 2
+	syscall 
+	
+	addi $t1, $t1, 4 
+	
+	jr $ra
+# ---------------------- # 
+
