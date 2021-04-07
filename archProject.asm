@@ -308,8 +308,7 @@ readSamplesArray:
 	la $t0, bufferTemp
 	li $v0, 4
 	syscall
-	li $v0, 5
-	syscall 
+
 #Getting the number of feature from the first line 
 readNumOfFeatures: 
 	lb $t1, ($t0)
@@ -328,19 +327,15 @@ connecting:
 	la $t0, numOfFeatures  #storing the first number as numOfFeatures.
 	sb $s1,($t0)
 	
-	move $a0,$s1
-	li $v0, 1
-	syscall
-
-
 	la $t0, bufferTemp     #t0 will hold text that will be iterated through
 firstLineLoop:
     	lb $s2, 0($t0)      #Loading char to shift into $s2    
     	beq $s2, '\n' , readNumOfClassesA   #Breaking the loop if we've reached the end: 
     	# s2 contain the current character
-    	move $a0,$s2
-    	li $v0, 1
-    	syscall
+    	
+    	#move $a0,$s2
+    	#li $v0, 1
+    	#syscall
     	addi $t0, $t0, 1    #i++
 	j firstLineLoop    #Going back to the beginning of the loop
     
@@ -376,9 +371,11 @@ storingNumOfClasses:
 	li $v0, 4
 	syscall
 	lb $s1, ($t1)
-	move $a0,$s1
-	li $v0, 1
-	syscall
+	
+	#move $a0,$s1
+	#li $v0, 1
+	#syscall
+	
 	la $a0, newLine
 	li $v0, 4
 	syscall
@@ -387,17 +384,17 @@ secondLineLoop:
     	lb $s2, 0($t0)      #Loading char to shift into $s2    
     	beq $s2, '\n' , finishProcedure   #Breaking the loop if we've reached the end: 
     	# s2 contain the current character
-    	move $a0,$s2
-    	li $v0, 1
-   	syscall
+    	#move $a0,$s2
+    	#li $v0, 1
+   	#syscall
     	addi $t0, $t0, 1    #i++
 	j secondLineLoop    #Going back to the beginning of the loop
 finishProcedure:   
- 	li $v0, 5
- 	syscall 
-    	la $a0, welcomeMess
-    	li $v0, 4
-	syscall
+ 	#li $v0, 5
+ 	#syscall 
+    	#la $a0, welcomeMess
+    	#li $v0, 4
+	#syscall
 fillingArrayLoopA:
 
       #temp 
@@ -454,17 +451,17 @@ division: # same logic as above
       
 endOfFile:
         #printing what we have read
-	la $a0, end
-	li $v0, 4
-	syscall
+	#la $a0, end
+	#li $v0, 4
+	#syscall
 	j exitA
       
 newElement1: 
        
 	#printing what we have read
- 	li $v0, 4
-	la $a0, element1
-	syscall     
+ 	#li $v0, 4
+	#la $a0, element1
+	#syscall     
 	# storing
 	add.s $f12, $f1,$f0
 	swc1 $f12, 0($a1) 
@@ -480,9 +477,9 @@ newElement1:
 newElement2: 
 	
 	#printing what we have read
- 	li $v0, 4
-	la $a0, element2
-	syscall     
+ 	#li $v0, 4
+	#la $a0, element2
+	#syscall     
 	# storing
 	add.s $f12, $f1,$f0
 	swc1 $f12, 0($a1) 
@@ -498,9 +495,9 @@ newElement2:
                 
 exitA: 
 	la $a1, samplesArray
-	move $a0,$t8
-	li $v0, 1
-	syscall 
+	#move $a0,$t8
+	#li $v0, 1
+	#syscall 
 	la $a3, numOfSamples
 	#add.s $f12, $f1,$f0
 	mtc1 $t7, $f2
@@ -533,7 +530,7 @@ readWeights:
 	la $t0, numOfFeatures
 	la $t1, numOfClasses 
 	lb $s0, ($t0)   #number of features stored here
-	lb $s5, ($t1)
+	lb $s5, ($t1)   #number of classes stoed here
 	xor $s1, $s1, $s1  #acts as a counter for the first loop, need to clear it
 	xor $s3, $s3, $s3 
 	addi $s3, $s3, 2  
@@ -571,19 +568,18 @@ readingWeightsForCurrentNeuronLoop:
 	addi $s2,$s2,1
 	addi $t0, $t0, 4
 	j readingWeightsForCurrentNeuronLoop
-	
 exit2:
-    	beq $t6, $s0, e	
-	lwc1 $f12, ($a1)
-	li $v0, 2
-	syscall
-	la $a0, newLine
-	li $v0, 4
-	syscall
+    	#beq $t6, $s0, e	
+	#lwc1 $f12, ($a1)
+	#li $v0, 2
+	#syscall
+	#la $a0, newLine
+	#li $v0, 4
+	#syscall
 
-	addi $a1, $a1, 4
-	addi $t6, $t6, 1
-	j exit2	
+	#addi $a1, $a1, 4
+	#addi $t6, $t6, 1
+	#j exit2	
 e:
 	jr $ra
 # ---------------------- #
@@ -595,8 +591,8 @@ readThresholds:
 	la $t0, numOfClasses
 	lb $s0, ($t0)   #number of classe stored here
 	xor $s1,$s1,$s1  #acts as a counter, need to clear it
-	xor $s2, $s2, $s2
-	addi $s2, $s2, 2
+	#xor $s2, $s2, $s2 
+	#addi $s2, $s2, 2
 	la $t0, thresholdsArray
 	la $a0, thresholdMess
 	la $a1, thresholdsArray
@@ -614,17 +610,17 @@ readingThresholdsLoop:
 	j readingThresholdsLoop	
 	
 exit3:
-    	beq $t6, $s0, e1	
-	lwc1 $f12, ($a1)
-	li $v0, 2
-	syscall
-	la $a0, newLine
-	li $v0, 4
-	syscall
+    	#beq $t6, $s0, e1	
+	#lwc1 $f12, ($a1)
+	#li $v0, 2
+	#syscall
+	#la $a0, newLine
+	#li $v0, 4
+	#syscall
 
-	addi $a1, $a1, 4
-	addi $t6, $t6, 1
-	j exit3
+	#addi $a1, $a1, 4
+	#addi $t6, $t6, 1
+	#j exit3
 e1:
 	jr $ra
 # ---------------------- #
@@ -640,6 +636,9 @@ readLearningRate:
 	syscall
 	la $t9, learningRate
 	swc1 $f0, ($t9)
+	#lwc1 $f12, 0($t9)
+	#li $v0,2
+	#syscall
 	jr $ra 
 # ---------------------- #
 
@@ -653,7 +652,10 @@ readMomentum:
 	li $v0, 6
 	syscall
 	la $t9, momentum
-	swc1 $f0, ($t9)
+	swc1 $f0, 0($t9)
+	#lwc1 $f12, 0($t9)
+	#li $v0,2
+	#syscall
 	jr $ra
 # ---------------------- #
 
@@ -669,7 +671,7 @@ readNumOfEpochs:
 	la $t9, numOfEpochs
 	sb $v0, ($t9)
 	# --------------------------
-	li $v0, 1
+	#li $v0, 1
 	#la $a1, numOfEpochs
 	#lb $a0,($a1)
 	#syscall
@@ -689,6 +691,7 @@ NeuronProcedure:
 # ---------------------- #
 trainingProcedure:
 	# $a1, $0, $t2 can't be used here  
+	# a1 is the current number of neuron 
 	# $s0 : shift amount for weight 
 	# $s1 : shift amount for threshold
 	# $s2 : number of epochs
@@ -710,10 +713,10 @@ trainingProcedure:
 	# $f26: previousSumOfSquareErrors 
 	# $f24: error*error 
 	
-	move $s0, $a1 
+	move $s0, $a1         #$s0 has the current neuron number
 	la $s2, numOfFeatures
 	xor $s3, $s3, $s3
-	lb $s3, ($s2) 
+	lb $s3, ($s2)         
 	multu $s0, $s3 
 	mflo $s0 # $s0 shift amount to the weight for the current neuron
 	sll $s0, $s0, 2
@@ -728,12 +731,12 @@ trainingProcedure:
 	lwc1 $f3, 0($a3)
 	lwc1 $f12, zeroAsFloat    #clearing the register
 	lwc1 $f0, zeroAsFloat    #clearing the register
-	add.s $f12, $f3, $f0 
+	#add.s $f12, $f3, $f0 
 	xor $s4, $s4, $s4
 	xor $s5, $s5, $s5
 	lwc1 $f1, zeroAsFloat    #clearing the register
 	lwc1 $f12, zeroAsFloat    #clearing the register
-	add.s $f12, $f1, $f0
+	#add.s $f12, $f1, $f0
 	lwc1 $f2, oneAsFloat  #Setting them for future use
 
          la $t4, weightsArray
@@ -754,11 +757,11 @@ epochs:
 samples: 
 	lwc1 $f4, zeroAsFloat    #clearing the weighted sum register
 	la $t4, weightsArray 
-         add $t4, $t4, $s0 # needs to get the weights again 
+        add $t4, $t4, $s0 # needs to get the weights again 
 	xor $s5, $s5, $s5	  
 	c.eq.s $f1, $f3 # if $f1==num of samples "$f3" start new epoch
 	bc1t epochA
-	add.s $f1, $f1, $f2
+	add.s $f1, $f1, $f2   #$f1=$f1+1
 newSample: 
 	lwc1 $f13, 0($t6) # get the feature in f13
 	lwc1 $f14, 0($t4) # get the weight in f14 
@@ -766,10 +769,22 @@ newSample:
 	mul.s $f13, $f13, $f14
 	add.s $f4, $f4, $f13 # add W*F into the weighted sum 
 	lwc1 $f12, 0($t6)
-	addi $t6, $t6, 4
-	addi $t4, $t4, 4
 	li $v0, 2
 	syscall 
+	# printing the * 
+	li $a0,'*'
+	li $v0,11
+	syscall
+	# print the weight
+	lwc1 $f12, 0($t4)
+	li $v0, 2
+	syscall
+	# printing the | 
+	li $a0,'|'
+	li $v0,11
+	syscall 
+	addi $t4, $t4, 4
+	addi $t6, $t6, 4
 	addi $s5, $s5, 1
          j newSample 
 
@@ -777,13 +792,21 @@ getClass: # call update weights, thresholds.
 	lwc1 $f5, 0($t6) # expected current sample class is in $f5
 	lwc1 $f7, 0($t5) # get the threshold in $f7 
 	######################
+	# printing the 
+	li $a0,'B'
+	li $v0,11
+	syscall 
          lwc1 $f12, zeroAsFloat
          add.s $f12, $f12, $f4
          li $v0, 2
          syscall 
          #####################
-        	sub.s $f4, $f4, $f7 # weighted sum - threshold 
-        	######################
+        sub.s $f4, $f4, $f7 # weighted sum - threshold 
+        ######################
+        # printing the  
+	li $a0,'A'
+	li $v0,11
+	syscall 
          lwc1 $f12, zeroAsFloat
          add.s $f12, $f12, $f4
          li $v0, 2
@@ -792,7 +815,6 @@ getClass: # call update weights, thresholds.
 	# call activation function 
 	# calculate the error
 	# update the weight and the threshold 
-	la $a0, welcomeMess
 	addi $sp, $sp, -8 
 	# needed to call another procedure 
 	sw $s6, 0($sp)
@@ -890,7 +912,7 @@ updateWeightsAndThreshold:
 	# $f25: sumOfSquareErrors 
 	# $f26: previousSumOfSquareErrors 
 	# $f24: error8error 
-	la $t4, weightsArray 
+	 la $t4, weightsArray 
          add $t4, $t4, $s0 # needs to get the weights again
          lwc1 $f7, 0($t5) # get the threshold in $f7
          lwc1 $f10, momentum
@@ -898,7 +920,7 @@ updateWeightsAndThreshold:
          sub.s $f9, $f5, $f6 # the error now in $f9  
 	
 	#         
-	mul.s $f24, $f9, $f9 # error8erro 
+	mul.s $f24, $f9, $f9 # error*error 
 	add.s $f25, $f25, $f24 # add the current sqaure error to the sumOfErrors for the current epoch 
 	
 	#                        
@@ -932,7 +954,7 @@ loopThroughFeatures:
 	lwc1 $f22, oneAsFloat
 	add.s $f10, $f10, $f22
 	mul.s $f20, $f20, $f10 # f20= (1-Momentum)*learningRate*Feature*error
-	add.s $f8, $f8, $f20 # newWeight 
+	add.s $f8, $f8, $f20 # newWeight =  weight*momentum + (1-Momentum)*learningRate*Feature*error
 	swc1 $f8, 0($t4)  
 	addi $t4, $t4, 4
 	addi $t9, $t9, 4
@@ -962,7 +984,19 @@ exitLoppThroughFeatures:
 	add.s $f10, $f10, $f22 # $f10 = 1-momentum 
 	mul.s $f22, $f9, $f10 # f22= (1-Momentum)*error 
 	mul.s $f22, $f22, $f18 # f22 = (1-Momentum)*error*learningRate "we decided that the input is fixed to 1"
-	add.s $f22, $f22, $f7 # new threshold
+	add.s $f22, $f22, $f7 # new threshold = threshold + (1-Momentum)*error*learningRate
+	#
+	# printing the T 
+	li $a0,'T'
+	li $v0,11
+	syscall 
+	mov.s $f12, $f22
+	li $v0,2
+	syscall
+	la $a0,newLine
+	li $v0,4
+	syscall
+	#
 	swc1 $f22, 0($t5) # store the new threshold 		 
 	jr $ra
 # ---------------------- #
@@ -986,12 +1020,14 @@ updateLearningRate:
 	la $a0, newLine
 	li $v0, 4
 	syscall  
-	la $a0, welcomeMess
-	li $v0, 4
-	syscall
-	li $v0, 1
-	move $a0, $s4
+	# printing the L 
+	li $a0,'L'
+	li $v0,11
 	syscall 
+	#
+	#li $v0, 1
+	#move $a0, $s4
+	#syscall 
 	la $a0, newLine
 	li $v0, 4
 	syscall 
@@ -1006,9 +1042,9 @@ updateLearningRate:
 	swc1 $f18, learningRate
 	j updatePreviousSumOfSqaureErrors
 increase: # increase the learning rate by 1.05
-	la $a0, temp
-	li $v0, 4
-	syscall   
+	#la $a0, temp
+	#li $v0, 4
+	#syscall   
 	lwc1 $f27, increaseOnePointZeroFive
 	mul.s $f18, $f18, $f27
 	swc1 $f18, learningRate
@@ -1260,4 +1296,3 @@ calculateTheWeightedSum:
 	
 	jr $ra
 # ---------------------- # 
-
