@@ -193,7 +193,14 @@ jal readTestingArray
 # $t1 : pointer to the weightedSum array 
 # $t3 : pointer for the testingArray 
 # $s7 : to store the address of the current sample 
+# $t7 : contains the class of each current sample
+# $f27 : counter for the ture values 
+# $f22 : counter for the false values   
 
+
+lwc1 $f27, zeroAsFloat
+lwc1 $f22, zeroAsFloat
+ 
 la $a0, numOfFeatures 
 lb $s6, 0($a0)
 addi $s6, $s6, 1
@@ -227,12 +234,26 @@ loopThroughTestSamples:
 		addi $a1, $a1, 1
 		j loopThroughNeurons1
 	exitLoopThroughNeurons1:
-		
-	# move t softMax function 
+	lwc1 $f31, 0($t3) 
+	cvt.w.s $f0, $f31
+	mfc1 $t7, $f0	
+	# move t softMax function
+	la $a0, 'A'
+	li $v0, 11
+	syscall  
+	li $a0, 1
+	beq $a0, $t0, Perceptron # in case of perceptron finding thr max is not right, we need to do an activation 
+	jal softMax
+	j calc
+	Perceptron: 
+		jal actPerceptron
+	calc: 
+		jal calculations
 	add $t3, $t3, 4 
 	addi $a3, $a3, 1
 	j loopThroughTestSamples
 exitLoopThroughTestSamples:
+jal calculateAccuracy
   # looping through the neurons
    
 
@@ -857,7 +878,7 @@ exitTraining:
 activationProcedure:
 	# make a decision about the output 
 	# f4 weightedsum, and the thresold for the comparsion is 0
-	
+	# $f5 : expected, $f6 : ture value 
 	lwc1 $f0, zeroAsFloat
 	c.le.s $f4, $f0
 	bc1t zeroValue
@@ -955,6 +976,16 @@ loopThroughFeatures:
 	add.s $f10, $f10, $f22
 	mul.s $f20, $f20, $f10 # f20= (1-Momentum)*learningRate*Feature*error
 	add.s $f8, $f8, $f20 # newWeight =  weight*momentum + (1-Momentum)*learningRate*Feature*error
+	# 
+	# printing the  
+	li $a0,'W'
+	li $v0,11
+	syscall 
+	mov.s $f12, $f8
+	li $v0,2
+	syscall
+	#
+
 	swc1 $f8, 0($t4)  
 	addi $t4, $t4, 4
 	addi $t9, $t9, 4
@@ -1178,15 +1209,7 @@ exitAT:
 	xor $t6, $t6, $t6 
 	la $a0, newLine
 	li $v0, 4
-	syscall 
-	move $a0,$t8
-	li $v0, 1
-	syscall 
-	li $v0, 5
-	syscall 
-	la $a0, newLine
-	li $v0, 4
-	syscall 
+	syscall  
 	la $a3, numberOfTestingSamples
 	sb $t8, 0($a3)
 	j printingSamplesT
@@ -1226,7 +1249,6 @@ calculateTheWeightedSum:
 	# $s5 : counter for the features "inner inner loop" 
 	# $f2 : oneAsFloat
 	# $f4 : for the weightedSum 
-	#
 	# $a1 : counter for loopThroughNeurons loop 
 	# $a3 : counter for loopThroughTestSamples
 	# $a2 : for numberOfTestingSamples
@@ -1272,13 +1294,14 @@ calculateTheWeightedSum:
 		addi $s4, $s4, 1
 		j loopThroughFeatures1
 	exitloopThroughFeatures1: 
-	la $a0, welcomeMess
-	li $v0, 4
-	syscall 
+	
 	# subtract the threshold 
 	lwc1 $f13, 0($t5) # the threshold value of the current neuron 
 	la $a0, newLine
 	li $v0, 4
+	syscall 
+	li $a0,'T'
+	li $v0,11
 	syscall 
 	lwc1 $f12, 0($t5)
 	li $v0, 2
@@ -1286,7 +1309,9 @@ calculateTheWeightedSum:
 	sub.s $f4, $f4, $f13
 	# store the currnet weightedSum ($f4) into weightedSum array 
 	swc1 $f4, 0($t1)
-	
+	li $a0,'W'
+	li $v0,11
+	syscall
 	lwc1 $f12, zeroAsFloat
 	add.s $f12, $f12, $f4
 	li $v0, 2
@@ -1296,3 +1321,120 @@ calculateTheWeightedSum:
 	
 	jr $ra
 # ---------------------- # 
+
+# ---------------------- #
+# soft max function 
+# ---------------------- #
+softMax:
+	# we will store the max in $f30
+	# $f28 : used for calculations 
+	# $a1 : counter for the loop in this proc
+	# $a3 : counter for loopThroughTestSamples
+	# $a2 : for numberOfTestingSamples
+	# $t0 ; for number of classes 
+	# $t1 : pointer to the weightedSum array 
+	# $t3 : pointer for the testingArray 
+	# $s7 : to store the address of the current sample  
+	# $t9 : store the number of neuron with the maximum weighted sum 
+	la $t2, numOfClasses
+	lb $t0, 0($t2)
+	la $t1, weightedSumArray
+	xor $a1, $a1, $a1
+	xor $t9, $t9, $t9 
+	addi $a1, $a1, 1 
+	lwc1 $f30, 0($t1)
+	addi $t1, $t1, 4
+	
+	loopMax: 
+		beq $a1, $t0, exitLoppMax
+		addi $a1, $a1, 1
+		lwc1 $f28, 0($t1)
+		addi $t1, $t1, 4
+		#if f20 > f30 == f30 < f28 then update f30
+		c.le.s $f30, $f28
+		bc1t updateMax
+		j loopMax
+		updateMax: 
+			mov.s $f30, $f28
+			move $t9, $a1
+			addi $t9, $t9, -1
+			j loopMax
+	exitLoppMax:
+	la $a0, newLine
+	li $v0, 4
+	syscall 
+	li $a0, 'M'
+	li $v0, 11
+	syscall 
+	move $a0, $t9
+	li $v0, 1
+	syscall 
+	jr $ra 
+# ---------------------- #
+
+# ---------------------- #
+# actPerceptron proc
+# ---------------------- #
+actPerceptron:
+	# $t9 : if weightedSum > 0 it wil be 0
+	la $t1, weightedSumArray
+	lwc1 $f4, 0($t1)
+	lwc1 $f0, zeroAsFloat
+	c.le.s $f0, $f4
+	bc1t zeroValue1
+	li $t9, 1
+	j returnActPerceptron
+zeroValue1:
+	li $t9, 0
+returnActPerceptron:
+	jr $ra
+# ---------------------- #
+
+
+# ---------------------- #
+# proc to calculate the P, A, R to measure the performance of the generated model
+# ---------------------- #
+calculations:
+	# we will store the max in $f30
+	# $f28 : used for calculations 
+	# $a1 : counter for the loop in this proc
+	# $a3 : counter for loopThroughTestSamples
+	# $a2 : for numberOfTestingSamples
+	# $t0 ; for number of classes 
+	# $t1 : pointer to the weightedSum array 
+	# $t3 : pointer for the testingArray 
+	# $s7 : to store the address of the current sample  
+	# $t9 : store the number of neuron with the maximum weighted sum 
+	# $t7 : contains the expected output 
+	# $f27 : counter for the ture values 
+	# $f22 : counter for the false values 
+	# f13 : one
+	lwc1 $f13, oneAsFloat 
+	beq $t9, $t7, addTrue # if expected == ture
+	add.s $f22, $f22, $f13 
+	j return
+	addTrue:
+		add.s $f27, $f27, $f13  
+	return: 
+		jr $ra
+# ---------------------- #
+
+# ---------------------- #
+# 
+# ---------------------- #
+calculateAccuracy: 
+	# $f27 : counter for the ture values 
+	# $f22 : counter for the false values 
+	# f13 : accuracy 
+	
+	add.s $f22, $f22, $f27 # f22 = total 
+	div.s $f13, $f27, $f22
+	la $a0, newLine
+	li $v0, 4
+	syscall 
+	mov.s $f12, $f13
+	li $v0, 2
+	syscall 
+	
+	jr $ra
+# ---------------------- #
