@@ -1,10 +1,3 @@
-#Prepared by: Alaa & Rawan 
-#-------------------------#
-#Need To consider: 
-#Handling the different inputs that the user may be entering 
-#reading the name of the file
-# in case of perceptron we assume that the neouron is for class 0, so mapping for the output: if out==0 then class 0 is off and vice versa 
-#-------------------------#
 .data
 numOfFeatures: .byte 0
 numOfClasses: .byte 0
@@ -301,6 +294,8 @@ readFile:
 	la $a0, fileName
 	li $a1, 0  #Flag=0 for read
 	syscall
+	#Checkign that this file exits
+	blt $v0,0, wrong
 	move $s0, $v0 # move the file pointer into $s0 
 	#Reading the File 
 	li $v0, 14  
@@ -312,6 +307,10 @@ readFile:
 	move $a0, $s0
 	syscall
 	jr $ra	
+#Terminating, if the file does not exist.
+wrong:	
+	li $v0, 10 
+	syscall
 # ---------------------- #
 						
 # ---------------------- #
@@ -1062,7 +1061,7 @@ exitLoppThroughFeatures:
 	add.s $f10, $f10, $f22 # $f10 = 1-momentum 
 	mul.s $f22, $f9, $f10 # f22= (1-Momentum)*error 
 	mul.s $f22, $f22, $f18 # f22 = (1-Momentum)*error*learningRate "we decided that the input is fixed to 1"
-	add.s $f22, $f22, $f7 # new threshold = threshold + (1-Momentum)*error*learningRate
+	add.s $f22, $f22, $f7 # new threshold = threshold*momnetun + (1-Momentum)*error*learningRate
 	# printing the T 
 	#
 	la $a0, updateThresholdMess
@@ -1100,7 +1099,8 @@ updateLearningRate:
 	c.eq.s $f26, $f0
 	bc1t updatePreviousSumOfSqaureErrors  
 	# find the ratio 
-	div.s $f27, $f25, $f26 # $f27 = currentSumOfSquareerrors/previousSumOfSquareerrors
+	sub.s $f27, $f25, $f26  # $f27 = currentSumOfSquareerrors-previousSumOfSquareerrors
+	# div.s $f27, $f25, $f26 
 	lwc1 $f0, ratio
 	c.le.s $f27, $f0
 	bc1t increase
